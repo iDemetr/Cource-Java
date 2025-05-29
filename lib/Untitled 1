@@ -1,0 +1,190 @@
+package Lr_5;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.util.List;
+
+import javax.swing.JFrame;
+import javax.swing.JTabbedPane;
+
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.axis.NumberAxis;
+import org.jfree.chart.plot.DatasetRenderingOrder;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
+
+/**
+ * 
+ */
+public class GraphApp extends JFrame {
+    private List<OperationStats> statsList;
+
+    /**
+     * 
+     * @param statsList
+     */
+    public GraphApp(List<OperationStats> statsList) {
+	this.statsList = statsList;
+	initUI();
+    }
+
+    /**
+     * 
+     */
+    private void initUI() {
+	setTitle("Графики производительности коллекций");
+	setSize(800, 600);
+	setLocationRelativeTo(null);
+	setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+	// Создаем панель с вкладками
+	var tabbedPane = new JTabbedPane();
+
+	// График для ArrayList
+	tabbedPane.addTab("ArrayList", createChartPanel("ArrayList"));
+	// График для HashMap
+	tabbedPane.addTab("HashMap", createChartPanel("HashMap"));
+
+	add(tabbedPane);
+    }
+
+    /**
+     * 
+     * @param collectionType
+     * @return
+     */
+    private ChartPanel createChartPanel(String collectionType) {
+	// Создаем наборы данных
+	var totalTimeDataset = createTotalTimeDataset(collectionType);
+	var averageTimeDataset = createAverageTimeDataset(collectionType);
+
+	// Создаем график
+	var chart = createChart(collectionType, totalTimeDataset);
+
+	// Настраиваем график
+	configurePlot(chart, averageTimeDataset);
+
+	// Создаем панель для графика
+	var chartPanel = new ChartPanel(chart);
+	chartPanel.setPreferredSize(new Dimension(800, 600));
+	return chartPanel;
+    }
+
+    /**
+     * Создание набора данных для общего времени
+     * 
+     * @param collectionType
+     * @return
+     */
+    private XYSeriesCollection createTotalTimeDataset(String collectionType) {
+	XYSeriesCollection dataset = new XYSeriesCollection();
+	for (OperationStats stats : statsList) {
+	    if (stats.getCollectionType().equals(collectionType)) {
+		var operationType = stats.getOperationType();
+		var size = stats.getSize();
+		var totalTime = stats.getTotalTime();/// 1_000_000; // Общее время в мс
+
+		// Отладочное сообщение
+		System.out.println(
+			"Adding total time: " + totalTime + " for operation: " + operationType + " with size: " + size);
+
+		dataset.addSeries(createSeries("Общее время (" + operationType + ") - " + size, size, totalTime));
+	    }
+	}
+	return dataset;
+    }
+
+    /**
+     * Создание набора данных для среднего времени
+     * 
+     * @param collectionType
+     * @return
+     */
+    private XYSeriesCollection createAverageTimeDataset(String collectionType) {
+	XYSeriesCollection dataset = new XYSeriesCollection();
+	for (OperationStats stats : statsList) {
+	    if (stats.getCollectionType().equals(collectionType)) {
+		var operationType = stats.getOperationType();
+		var size = stats.getSize();
+		var averageTime = (double) stats.getTotalTime() / stats.getCountItem(); // Среднее время в нс
+
+		// Отладочное сообщение
+		System.out.println("Adding average time: " + averageTime + " for operation: " + operationType
+			+ " with size: " + size);
+
+		dataset.addSeries(createSeries("Среднее время (" + operationType + ") - " + size, size, averageTime));
+	    }
+	}
+	return dataset;
+    }
+
+    /**
+     * Создаие графика на основе набора данных общего времени
+     * 
+     * @param collectionType
+     * @param totalTimeDataset
+     * @return
+     */
+    private JFreeChart createChart(String collectionType, XYSeriesCollection totalTimeDataset) {
+	return ChartFactory.createXYLineChart("Производительность " + collectionType, // Заголовок
+		"Количество элементов", // Ось X
+		"Общее время (нс)", // Ось Y (основная)
+		totalTimeDataset, // Данные для общего времени
+		PlotOrientation.VERTICAL, // Ориентация
+		true, // Легенда
+		true, // Подсказки
+		false // URL
+	);
+    }
+
+    /**
+     * 
+     * @param chart
+     * @param averageTimeDataset
+     */
+    private void configurePlot(JFreeChart chart, XYSeriesCollection averageTimeDataset) {
+	var plot = chart.getXYPlot();
+
+	// Добавляем второй набор данных (среднее время) на график
+	plot.setDataset(1, averageTimeDataset);
+	plot.setRenderer(1, new XYLineAndShapeRenderer(true, false));
+
+	// Настраиваем вторую ось Y для среднего времени (в нс)
+	var secondaryAxis = new NumberAxis("Среднее время (нс)");
+	secondaryAxis.setAutoRangeIncludesZero(true); // Включаем ноль
+	plot.setRangeAxis(1, secondaryAxis);
+	plot.mapDatasetToRangeAxis(1, 1);
+
+	// Устанавливаем порядок отрисовки
+	plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
+
+	// Настраиваем цвета для графиков
+	var renderer1 = (XYLineAndShapeRenderer) plot.getRenderer();
+	renderer1.setSeriesPaint(0, Color.BLUE); // Общее время для операции 1
+	renderer1.setSeriesPaint(1, Color.RED); // Общее время для операции 2
+
+	var renderer2 = (XYLineAndShapeRenderer) plot.getRenderer(1);
+	renderer2.setSeriesPaint(0, Color.GREEN); // Среднее время для операции 1
+	renderer2.setSeriesPaint(1, Color.ORANGE); // Среднее время для операции 2
+    }
+
+    /**
+     * 
+     * @param seriesName
+     * @param size
+     * @param value
+     * @return
+     */
+    private XYSeries createSeries(String seriesName, int size, double value) {
+	// Добавляем размер коллекции в имя серии, чтобы сделать его уникальным
+	var uniqueSeriesName = seriesName + " (size=" + size + ")";
+	var series = new XYSeries(uniqueSeriesName);
+	series.add(size, value); // Добавляем точку данных (размер коллекции, значение времени)
+	return series;
+    }
+
+}

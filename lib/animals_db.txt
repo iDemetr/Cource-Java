@@ -1,0 +1,3 @@
+1558600329,Лось,5,Herbivore,Кора
+815033865,Рысь,4,Predator
+1555093762,sdsad,4,Herbivore,Rj
